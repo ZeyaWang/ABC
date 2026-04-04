@@ -2,7 +2,7 @@
 
 ## Overview
 
-Adapt via Bayesian Nonparametric Clustering (ABC) is a novel framework designed for Source Free Domain Adaptation scenarios where unknown target classes are present
+Adapt via Bayesian Nonparametric Clustering (ABC) is a novel framework designed for Source Free Domain Adaptation scenarios where unknown target classes are present.
 
 
 ## Dependencies & Setup

@@ -1,0 +1,13 @@
+Cython==3.2.3
+easydl==2.2.0
+joblib==1.4.2
+numpy==1.24.4
+pandas==2.2.3
+pillow==11.0.0
+plotly==5.24.1
+scikit-learn==1.6.0
+scipy==1.14.1
+tensorboardX==2.6.2.2
+torch==1.13.0+cu117
+torchvision==0.14.0+cu117
+tqdm==4.67.1

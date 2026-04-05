@@ -27,7 +27,6 @@ parser.add_argument('--alpha', type=float, default=1)
 
 ## other parameters
 parser.add_argument('--balance', type=float, default=0.01)
-parser.add_argument('--lambdav', type=float, default=0.)
 parser.add_argument('--KK', type=int, default=5)
 
 args = parser.parse_args()  

@@ -222,7 +222,7 @@ def _kmeans_single_lloyd_merge(
 
         if verbose:
             inertia = _inertia(X, sample_weight, centers, labels, n_threads)
-            print(f"Iteration {i}, inertia {inertia}.")
+            #print(f"Iteration {i}, inertia {inertia}.")
 
         centers, centers_new = centers_new, centers
 
@@ -260,7 +260,6 @@ class Big_KMeans:
         self._n_threads = _openmp_effective_n_threads()
 
     def fit_merge_pyx(self, X, y):
-        print('Do Kmeans Cython!')
         y_cls = np.unique(y)
         n_clusters_unknown = self.n_clusters - len(np.unique(y))
         X_src = X[:len(y), ]

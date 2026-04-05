@@ -27,7 +27,7 @@ Download the following datasets from their official websites and unzip them into
 ```
 ./data
 ├── office
-│   ├── Amazon
+│   ├── amazon
 │   │   └── ...
 │   ├── amazon.txt
 │   └── ...

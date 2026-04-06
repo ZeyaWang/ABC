@@ -53,7 +53,7 @@ class OptSets():
 def detect(totalNet):
     feature_list, label_list, pred_logits = [], [], []
     with TrainingModeManager(
-            [totalNet.feature_extractor, totalNet.bottle_neck, totalNet.classifier], train=False) as mgr, \
+            [totalNet.feature_extractor, totalNet.bottle_neck, totalNet.classifier], train=False) as tmg, \
             torch.no_grad():
         for _, (im, label) in enumerate(tqdm(target_test_dl)):
             im = im.to(output_device)
@@ -73,33 +73,33 @@ def detect(totalNet):
     return labels, cos_max, w_k_posterior, cos_argmax, feature
 
 
-def clustering(tgt_embedding, tgt_member, predict_src):
+def clustering(tgt_embedding, predict_src):
     num_predict_src_unk = np.sum(predict_src == args.max_k)
     predict_src_known = predict_src[predict_src < args.max_k]
     uq_pred_src= np.unique(predict_src_known)
     num_uq_pred_src = len(uq_pred_src)
     n_components = num_uq_pred_src + num_predict_src_unk
-    n_components = min(n_components, args.max_k)
-    
-    # Cluster = BayesianGaussianMixtureMerge(
-    #     n_components=n_components,
-    #     n_init=5,
-    #     weight_concentration_prior=args.alpha / args.max_k,
-    #     weight_concentration_prior_type='dirichlet_process',
-    #     init_params='kmeans_merge',
-    #     covariance_prior=args.covariance_prior * args.bottle_neck_dim * np.identity(
-    #         args.bottle_neck_dim),
-    #     covariance_type='full')
-
-    tgt_predict = merge_cluster(Cluster, tgt_embedding, tgt_member, predict_src, num_src_cls=num_src_cls)
+    if n_components < args.max_k:
+        Cluster = BayesianGaussianMixtureMerge(
+            n_components=n_components,
+            n_init=5,
+            weight_concentration_prior=args.alpha / args.max_k,
+            weight_concentration_prior_type='dirichlet_process',
+            init_params='kmeans_merge',
+            covariance_prior=args.covariance_prior * args.bottle_neck_dim * np.identity(
+                args.bottle_neck_dim),
+            covariance_type='full')
+    tgt_predict = merge_cluster(Cluster, tgt_embedding, predict_src, num_src_cls)
     metrics = {}
     return tgt_predict, metrics
+
 
 def generate_memory(tgt_predict, embedding):
     tgt_predict_post, tgt_match = post_match(tgt_predict)
     memory = Memory(len(np.unique(tgt_predict_post)), feat_dim=args.bottle_neck_dim)
     memory.init(embedding, tgt_predict_post, output_device)
     return memory, tgt_predict_post, tgt_match
+
 
 def train(ClustNet, train_ds, memory, optSets, epoch_step, global_step, total_step):
     num_sample = len(train_ds)
@@ -115,7 +115,6 @@ def train(ClustNet, train_ds, memory, optSets, epoch_step, global_step, total_st
             _, feat_outputs, logit_outputs = ClustNet(inputs.to(output_device))
             feat_bank[indx] = F.normalize(feat_outputs).detach().clone().cpu()
             score_bank[indx] = nn.Softmax(-1)(logit_outputs).detach().clone()
-
 
     ClustNet.train()
     mloss_total_t, closs_total_t, loss_total_t = [], [], []
@@ -185,7 +184,7 @@ for epoch_id in tqdm(range(args.total_epoch), desc="Processing"):
         predict_y[w_k_posterior <= t] = args.max_k
         if (len(predict_y[predict_y < args.max_k]) == 0) or (len(predict_y[predict_y == args.max_k]) == 0):
             continue
-        tgt_predict, metrics = clustering(tgt_embedding, tgt_member, predict_y)
+        tgt_predict, metrics = clustering(tgt_embedding, predict_y)
         if len(threshs) == 1:
             sil = 1.0 
         else:
@@ -199,8 +198,7 @@ for epoch_id in tqdm(range(args.total_epoch), desc="Processing"):
     memory, tgt_predict_post, tgt_match = generate_memory(tgt_predict, tgt_embedding)
     target_train_ds.labels = list(zip([i for i in range(len(target_train_ds.datas))], tgt_predict_post))
     
-    (_, unknown_test_truth, unknown_test_pred, acc_all, acc_v, hos,
-    nmi_v, unk_nmi, k_acc, tgt_member, tgt_predict) = inference(memory.memory,
+    (_, _, _, acc_all, acc_v, hos, nmi_v, unk_nmi, k_acc, tgt_member, tgt_predict) = inference(memory.memory,
                                                             totalNet,
                                                             target_test_dl,
                                                             output_device,
@@ -214,7 +212,7 @@ for epoch_id in tqdm(range(args.total_epoch), desc="Processing"):
     metrics['tgt_predict'] = tgt_predict
     metrics['epoch_id'] = epoch_id
 
-    global_step, closs_total_t, mloss_total_t, loss_total_t = train(totalNet, target_train_ds, memory, optSets, epoch_id, global_step, args.total_epoch)
+    global_step, _, _, _ = train(totalNet, target_train_ds, memory, optSets, epoch_id, global_step, args.total_epoch)
 
     if (epoch_id == 0) or (hos > best_hos):
         best_hos = hos

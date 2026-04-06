@@ -127,7 +127,7 @@ vectorized_map = np.vectorize(map_values)
 def inference(t_centers , Net, target_test_dl, output_device, source_classes, tgt_match):
     tgt_member, tgt_predict = [], []
     Net.eval()
-    for i, (im_target, label_target) in enumerate(target_test_dl):
+    for _, (im_target, label_target) in enumerate(target_test_dl):
         im_target = im_target.to(output_device)
         _, feature_target, _ = Net(im_target)
         tgt_member.append(label_target.detach().cpu().numpy())
@@ -146,7 +146,6 @@ def inference(t_centers , Net, target_test_dl, output_device, source_classes, tg
     hos = 2 * (kn_acc * unk_acc) / (kn_acc + unk_acc)
     nmi_v = nmi(tgt_member,tgt_predict)
     unk_nmi = nmi(unknown_test_truth, unknown_test_pred)
-
     k_acc = np.sum(np.array(known_test_truth) == np.array(known_test_pred)) / len(known_test_truth)
     return acc_counter, unknown_test_truth, unknown_test_pred, acc_all, acc_v, hos, nmi_v, unk_nmi, k_acc, tgt_member, tgt_predict
 
@@ -154,8 +153,8 @@ def inference(t_centers , Net, target_test_dl, output_device, source_classes, tg
 def gen_cluster_input(Net, target_test_dl, output_device):
     tgt_embedding, tgt_member = [], []
     with TrainingModeManager([Net.feature_extractor, Net.bottle_neck, Net.classifier],
-                             train=False) as mgr, torch.no_grad():
-        for i, (im_target, label_target) in enumerate(target_test_dl):
+                             train=False) as tmg, torch.no_grad():
+        for _, (im_target, label_target) in enumerate(target_test_dl):
             im_target = im_target.to(output_device)
             _, feature_target, _ = Net(im_target)
             tgt_embedding.append(feature_target.detach().cpu().numpy())
@@ -165,14 +164,14 @@ def gen_cluster_input(Net, target_test_dl, output_device):
     return tgt_embedding, tgt_member
 
 
-def merge_cluster(Cluster, tgt_embedding, tgt_member, tgt_predict_src, num_src_cls=20):
+def merge_cluster(Cluster, tgt_embedding, tgt_predict_src, num_src_cls):
     tgt_embedding_k = tgt_embedding[tgt_predict_src < num_src_cls]
     tgt_embedding_unk = tgt_embedding[tgt_predict_src >= num_src_cls]
     tgt_predict_k = tgt_predict_src[tgt_predict_src < num_src_cls]
     unique_tgt_predict_k = np.unique(tgt_predict_k)
     tgt_predict = np.copy(tgt_predict_src)
     embedding = np.concatenate([tgt_embedding_k, tgt_embedding_unk], axis=0)
-    tgt_member_new, _, _ = Cluster.fit_merge(embedding, tgt_predict_k, v1=False)
+    tgt_member_new, _, _ = Cluster.fit_merge(embedding, tgt_predict_k)
     mask = ~np.isin(tgt_member_new, unique_tgt_predict_k)
     tgt_member_new[mask] += num_src_cls
     tgt_predict[tgt_predict_src >= num_src_cls] = tgt_member_new

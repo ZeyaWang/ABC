@@ -22,24 +22,6 @@ import copy
 import kmeans
 
 
-def map_label(map_src, map_tar, to_be_map):
-    src_indexes = np.unique(map_src, return_index=True)[1] # original array
-    src_map = [map_src[index] for index in sorted(src_indexes)]
-    tar_indexes = np.unique(map_tar, return_index=True)[1] # processed array
-    tar_map = [map_tar[index] for index in sorted(tar_indexes)]
-    mapping = {tar_map[i]:src_map[i] for i in range(len(src_map))}
-    max_k = np.max(to_be_map) + 1
-    print(src_map, tar_map)
-    for k, v in mapping.items():
-        print(k,v)
-        if k != v:
-            if v in to_be_map:
-                to_be_map[to_be_map == v] = max_k
-                max_k += 1
-            to_be_map[to_be_map == k] = v
-    return to_be_map
-
-
 
 def _one_hot(y, k):
     """
@@ -160,7 +142,7 @@ class BayesianGaussianMixtureMerge(BayesianGaussianMixture):
         }
 
 
-    def fit_merge(self, X, y, v1=True):
+    def fit_merge(self, X, y):
         """Estimate model parameters using X and predict the labels for X.
 
         The method fits the model n_init times and sets the parameters with
